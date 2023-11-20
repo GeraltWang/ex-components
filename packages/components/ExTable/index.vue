@@ -18,7 +18,7 @@
           </template>
         </el-table-column>
       </template>
-      <template v-for="item in  tableNormalColumns " :key="item">
+      <template v-for="item in tableNormalColumns" :key="item">
         <el-table-column v-bind="item" v-if="item.isShow">
           <template #default="scope">
             <slot :name="item.prop" v-bind="scope">
@@ -78,11 +78,11 @@
   <ColumnSetting v-if="showColumnSettingInner" ref="columnSettingRef" v-model:columns="tableNormalColumns">
   </ColumnSetting>
 </template>
-<script setup lang="ts">
-import { ref, computed, defineOptions, onMounted, onActivated, onDeactivated, useAttrs, watchEffect, nextTick, provide } from 'vue'
+<script setup lang="ts" generic="T extends Record<string, unknown>">
+import { ref, computed, defineOptions, onMounted, onActivated, onDeactivated, useAttrs, watchEffect, nextTick, provide, Ref } from 'vue'
 import { ElTable } from 'element-plus'
 import { Refresh, Operation, Setting } from '@element-plus/icons-vue'
-import { ColumnsProps, ColumnType, PageProps, TableSize } from './index'
+import { ColumnsProps, ColumnType, PageProps, TableSize, PageParamsProps, ResponseDataProps } from './index'
 import ColumnSetting from './components/ColumnSetting.vue'
 import { useTableSelection } from './hooks/useTableSelection'
 import storage from '../../utils/storage'
@@ -92,14 +92,17 @@ defineOptions({
 })
 
 interface Props {
-  data?: any[]; //表格数据（可选）如果传入该参数，则不会请求接口
+  /**
+   * 表格数据（可选）如果传入该参数，则不会请求接口
+   */
+  data?: T[];
   /**
    * 表格列（可选）
    * 当需要使用自定义列设置时，必须传入该参数
    * 注意：该参数必须是响应式的，否则自定义列设置无法生效
    * 注意：操作列不要传入
    */
-  columns: ColumnsProps[];
+  columns?: ColumnsProps[];
   /**
    * 请求接口
    * 分页表格要求接口返回数据格式为
@@ -108,7 +111,7 @@ interface Props {
    * total: 0
    * }
    */
-  requestApi?: (params: any) => Promise<any>;
+  requestApi?: (params: any) => Promise<ResponseDataProps<T>>;
   /**
  * 初始请求参数（可选）
  * 如果未传入, 在搜索/重置时需要传入dynamicParams
@@ -123,8 +126,9 @@ interface Props {
    * 请求接口返回数据处理函数
    * 如果返回的数据格式不是标准rows，total格式，可以通过该函数处理
    */
-  responseDataHandler?: (response: any) => any;
+  responseDataHandler?: (response: any) => ResponseDataProps<T>;
   isPage?: boolean;
+  pageParams?: PageParamsProps;
   border?: boolean;
   stripe?: boolean;
   rowKey?: string;
@@ -138,12 +142,19 @@ interface Props {
   showColumnSetting?: boolean
 }
 
-const { data, columns, showColumnSetting, requestParams, requestAuto, isPage, requestApi, responseDataHandler, border, rowKey, size, stripe, emptyText, pageConfig, tableName } = withDefaults(
+const props = withDefaults(
   defineProps<Props>(), {
+  data: () => [],
   columns: () => [],
   rowKey: 'id',
   requestAuto: false,
   isPage: true,
+  pageParams: () => ({
+    pageNum: 'pageNum',
+    pageSize: 'pageSize',
+    initPageNum: 1,
+    initPageSize: 10
+  }),
   showColumnSetting: false,
   border: false,
   stripe: false,
@@ -153,19 +164,24 @@ const { data, columns, showColumnSetting, requestParams, requestAuto, isPage, re
   pageConfig: () => ({
     layout: 'total, sizes, prev, pager, next, jumper',
     pageSizes: [10, 25, 50, 100],
-    hideOnSinglePage: true,
+    hideOnSinglePage: false,
     background: true,
     small: false
   })
 }
 )
 
-provide('TableName', tableName)
+provide('TableName', props.tableName)
 
 // 初始分页数据
-const initPageControl = {
-  pageNum: 1,
-  pageSize: 10
+// const initPageControl = {
+//   pageNum: 1,
+//   pageSize: 10
+// }
+
+const initPageParams = {
+  [`${props.pageParams.pageNum}`]: props.pageParams.initPageNum,
+  [`${props.pageParams.pageSize}`]: props.pageParams.initPageSize
 }
 
 // column 列类型
@@ -191,7 +207,7 @@ const attrs = useAttrs()
 
 const tableRef = ref<InstanceType<typeof ElTable> | null>(null)
 
-const tableInnerColumns = ref<ColumnsProps[]>(columns)
+const tableInnerColumns = ref<ColumnsProps[]>(props.columns)
 
 // 表格列 - 处理isShow为undefined的情况
 const tableColumns = computed(() => {
@@ -221,14 +237,14 @@ watchEffect(() => {
 const tableParams = ref({})
 
 // 表格数据
-const tableData = ref([])
+const tableData = ref<T[]>([]) as Ref<T[]>
 
 // 处理表格数据
 const processTableData = computed(() => {
-  if (!data) return tableData.value
-  return data.slice(
-    (pageControl.value.pageNum - 1) * pageControl.value.pageSize,
-    pageControl.value.pageSize * pageControl.value.pageNum
+  if (!props.data) return tableData.value
+  return props.data.slice(
+    (pageControl.value[props.pageParams.pageNum] - 1) * pageControl.value[props.pageParams.pageSize],
+    pageControl.value[props.pageParams.pageSize] * pageControl.value[props.pageParams.pageNum]
   )
 })
 
@@ -245,26 +261,26 @@ const total = ref(0)
 const radio = ref('')
 
 // 表格多选hook
-const { isSelected, selected, selectedIds, selectionChange } = useTableSelection(rowKey)
+const { isSelected, selected, selectedIds, selectionChange } = useTableSelection(props.rowKey)
 
 // 获取数据
 const getData = async (dynamicParams = {}) => {
-  if (!requestApi || data) {
+  if (!props.requestApi || props.data) {
     return
   }
   try {
     loading.value = true
-    Object.assign(tableParams.value, requestParams, dynamicParams, isPage ? pageControl.value : {})
-    if (responseDataHandler && typeof responseDataHandler === 'function') {
-      const res = await requestApi(tableParams.value)
-      const { rows, total: rowsTotal } = responseDataHandler(res)
+    Object.assign(tableParams.value, props.requestParams, dynamicParams, props.isPage ? pageControl.value : {})
+    if (props.responseDataHandler && typeof props.responseDataHandler === 'function') {
+      const res = await props.requestApi(tableParams.value)
+      const { rows, total: rowsTotal } = props.responseDataHandler(res)
       tableData.value = rows
-      total.value = rowsTotal
+      total.value = rowsTotal || rows.length
     } else {
-      const res = await requestApi(tableParams.value)
+      const res = await props.requestApi(tableParams.value)
       const { rows, total: rowsTotal } = res
       tableData.value = rows
-      total.value = rowsTotal
+      total.value = rowsTotal || rows.length
     }
     loading.value = false
   } catch (error) {
@@ -274,10 +290,10 @@ const getData = async (dynamicParams = {}) => {
 }
 
 onMounted(() => {
-  !isPage && (innerPageConfig.value.layout = 'total')
-  requestAuto && getData()
-  data && Array.isArray(data) && (total.value = data.length)
-  showColumnSetting && getColumnsFromSession()
+  !props.isPage && (innerPageConfig.value.layout = 'total')
+  props.requestAuto && getData()
+  props.data && Array.isArray(props.data) && (total.value = props.data.length)
+  props.showColumnSetting && getColumnsFromSession()
 })
 
 // ---------- 滚动条控制 只有页面符合keep-alive条件时才会生效 ----------
@@ -300,17 +316,15 @@ onDeactivated(() => {
 })
 
 // ---------- 分页控制 ----------
-const innerPageConfig = ref(pageConfig)
+const innerPageConfig = ref(props.pageConfig)
 
 const pageControl = ref({
-  pageNum: initPageControl.pageNum,
-  pageSize: initPageControl.pageSize
+  ...initPageParams
 })
 
 const handleSizeChange = (val: number) => {
-  pageControl.value.pageSize = val
-  pageControl.value.pageNum = initPageControl.pageNum
-  getData()
+  pageControl.value[props.pageParams.pageSize] = val
+  pageControl.value[props.pageParams.pageNum] = initPageParams[props.pageParams.pageNum]
 }
 
 const handleCurrentChange = () => {
@@ -319,9 +333,9 @@ const handleCurrentChange = () => {
 
 // ---------- 自定义表格控制 可以控制表格尺寸 斑马纹 边框 ----------
 const customTable = ref({
-  size: size || 'default',
-  stripe: stripe ?? false,
-  border: border ?? false
+  size: props.size || 'default',
+  stripe: props.stripe ?? false,
+  border: props.border ?? false
 })
 
 const onTableSizeChange = () => {
@@ -329,7 +343,7 @@ const onTableSizeChange = () => {
 }
 
 // ---------- 自定义表格列设置 ----------
-const showColumnSettingInner = ref(showColumnSetting)
+const showColumnSettingInner = ref(props.showColumnSetting)
 
 const columnSettingRef = ref<InstanceType<typeof ColumnSetting> | null>(null)
 
@@ -341,7 +355,7 @@ const openColumnSetting = () => {
 }
 
 const getColumnsFromSession = () => {
-  const columnsFromSession = storage.getSession(`columns-${tableName}`)
+  const columnsFromSession = storage.getSession(`columns-${props.tableName}`)
   if (columnsFromSession && Array.isArray(columnsFromSession) && columnsFromSession.length > 0) {
     tableNormalColumns.value = columnsFromSession
   }
@@ -361,9 +375,9 @@ const refresh = () => {
  * @param {any} dynamicParams 
  */
 const reload = (dynamicParams: any = {}) => {
-  pageControl.value.pageNum = initPageControl.pageNum
-  pageControl.value.pageSize = initPageControl.pageSize
-  tableParams.value = requestParams
+  pageControl.value[props.pageParams.pageNum] = initPageParams[props.pageParams.pageNum]
+  pageControl.value[props.pageParams.pageSize] = initPageParams[props.pageParams.pageSize]
+  tableParams.value = props.requestParams
   clearSelection()
   clearSort()
   clearFilter()
@@ -375,7 +389,7 @@ const reload = (dynamicParams: any = {}) => {
  * @param {any} dynamicParams 
  */
 const search = (dynamicParams: any = {}) => {
-  pageControl.value.pageNum = initPageControl.pageNum
+  pageControl.value[props.pageParams.pageNum] = initPageParams[props.pageParams.pageNum]
   clearSelection()
   getData(dynamicParams)
 }
@@ -393,8 +407,8 @@ const insertRow = (data: never, index: number) => {
  * 根据id获取指定行
  * @param {*} id 
  */
-const getRowById = (id: string | number) => {
-  return tableData.value.find((item) => item[rowKey] === id) || null
+const getRowById = (id: string | number, idKey?: string) => {
+  return tableData.value.find((item) => item[idKey ? idKey : props.rowKey] === id) || null
 }
 
 /**
@@ -402,8 +416,8 @@ const getRowById = (id: string | number) => {
  * @param {object} data 
  * @param {string | number} id 
  */
-const updateRowById = (data: never, id: string | number) => {
-  const index = tableData.value.findIndex((item) => item[rowKey] === id)
+const updateRowById = (data: never, id: string | number, idKey?: string) => {
+  const index = tableData.value.findIndex((item) => item[idKey ? idKey : props.rowKey] === id)
   if (index === -1) return
   tableData.value.splice(index, 1, data)
 }
@@ -412,8 +426,8 @@ const updateRowById = (data: never, id: string | number) => {
  * 根据id删除指定行
  * @param {string | number} id 
  */
-const deleteRowById = (id: string | number) => {
-  tableData.value = tableData.value.filter((item) => item[rowKey] !== id)
+const deleteRowById = (id: string | number, idKey?: string) => {
+  tableData.value = tableData.value.filter((item) => item[idKey ? idKey : props.rowKey] !== id)
 }
 
 /**

@@ -19,4 +19,16 @@ export interface PageProps {
 	small: boolean
 }
 
+export interface PageParamsProps {
+	pageNum: string
+	pageSize: string
+	initPageNum: number
+	initPageSize: number
+}
+
 export type TableSize = 'default' | 'small' | 'large'
+
+export interface ResponseDataProps<T = any> {
+	rows: T[]
+	total?: number
+}
