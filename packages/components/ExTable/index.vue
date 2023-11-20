@@ -86,6 +86,7 @@ import { ColumnsProps, ColumnType, PageProps, TableSize, PageParamsProps, Respon
 import ColumnSetting from './components/ColumnSetting.vue'
 import { useTableSelection } from './hooks/useTableSelection'
 import storage from '../../utils/storage'
+import './index.scss'
 
 defineOptions({
   name: 'ExTable'
@@ -144,7 +145,7 @@ interface Props {
 
 const props = withDefaults(
   defineProps<Props>(), {
-  data: () => [],
+  // data: () => [],
   columns: () => [],
   rowKey: 'id',
   requestAuto: false,
@@ -174,11 +175,6 @@ const props = withDefaults(
 provide('TableName', props.tableName)
 
 // 初始分页数据
-// const initPageControl = {
-//   pageNum: 1,
-//   pageSize: 10
-// }
-
 const initPageParams = {
   [`${props.pageParams.pageNum}`]: props.pageParams.initPageNum,
   [`${props.pageParams.pageSize}`]: props.pageParams.initPageSize
@@ -476,36 +472,3 @@ defineExpose({
   clearFilter
 })
 </script>
-<style lang="scss" scoped>
-.ex-table {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-}
-
-.el-table {
-  flex: 1;
-
-  table {
-    width: 100%;
-  }
-}
-
-.ex-table-pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 15px;
-  flex-wrap: wrap;
-
-  .ex-table-pagination__right {
-    white-space: nowrap;
-  }
-}
-
-.custom-field {
-  margin-bottom: 10px;
-}
-</style>

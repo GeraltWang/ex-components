@@ -24,7 +24,14 @@ export default defineConfig({
 		Components({
 			resolvers: [ElementPlusResolver()],
 		}),
-		dts(),
+		dts({
+			// 输出目录
+			outDir: ['lib/types'],
+			// 将动态引入转换为静态（例如：`import('vue').DefineComponent` 转换为 `import { DefineComponent } from 'vue'`）
+			staticImport: true,
+			// 将所有的类型合并到一个文件中
+			rollupTypes: true,
+		}),
 	],
 	resolve: {
 		// https://cn.vitejs.dev/config/#resolve-alias
@@ -45,10 +52,11 @@ export default defineConfig({
 			fileName: 'index',
 		},
 		rollupOptions: {
-			external: ['vue'],
+			external: ['vue', 'element-plus', '@element-plus/icons-vue'],
 			output: {
 				globals: {
 					vue: 'Vue',
+					'element-plus': 'ElementPlus',
 				},
 			},
 		},

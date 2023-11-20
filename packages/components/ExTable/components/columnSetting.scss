@@ -1,4 +1,21 @@
-@import '../../../style/index.scss';
+.el-container {
+	background: var(--el-bg-color);
+	height: 100% !important;
+}
+
+.el-header {
+	padding: 20px !important;
+	height: auto !important;
+	border-bottom: var(--el-border);
+}
+
+.el-main {
+	flex-basis: 100%;
+}
+
+.el-drawer .el-drawer__body {
+	padding: 0 !important;
+}
 
 .footer-wrap {
 	height: 100%;

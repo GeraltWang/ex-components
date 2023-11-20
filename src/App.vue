@@ -1,62 +1,38 @@
 <script setup lang="ts">
 // import ExTable from '../packages/components/ExTable/index.vue'
-import { ExTable } from '../packages'
+// import { ExTable } from '../packages'
+// import { ExTable } from '../lib'
+// import '../lib/style.css'
+import { ExTable } from 'ex-components/lib'
+import 'ex-components/lib/style.css'
 import { reactive } from 'vue'
 
 const columns = reactive([
   {
-    label: 'Name',
-    prop: 'name'
+    label: 'title',
+    prop: 'title'
   }
 ])
 
 interface Data {
-  name: string
+  title: string
 }
 
-const data = reactive<Data[]>([
-  {
-    name: '1121212'
-  },
-  {
-    name: '1121212'
-  },
-  {
-    name: '1121212'
-  },
-  {
-    name: '1121212'
-  },
-  {
-    name: '1121212'
-  },
-  {
-    name: '1121212'
-  },
-  {
-    name: '1121212'
-  },
-  {
-    name: '1121212'
-  },
-  {
-    name: '1121212'
-  },
-  {
-    name: '1121212'
-  },
-  {
-    name: '1121212'
-  },
-  {
-    name: '1121212'
-  },
-])
+const fetchApi = async () => fetch('https://jsonplaceholder.typicode.com/posts').then(res => res.json())
+
+const responseDataHandler = (res) => {
+  console.log(res);
+  return {
+    rows: res,
+    total: res.length
+  }
+}
 </script>
 
 <template>
   <div>
-    <ExTable :data="data" :columns="columns" show-column-setting></ExTable>
+    <ExTable :request-api="fetchApi" :columns="columns" request-auto :response-data-handler="responseDataHandler"
+      show-column-setting></ExTable>
   </div>
 </template>
 

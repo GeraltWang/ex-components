@@ -33,7 +33,7 @@
 import { ref, inject } from 'vue'
 import { ColumnsProps, ColumnFixedType } from '../index'
 import storage from '../../../utils/storage'
-import './ColumnSetting.scss'
+import './columnSetting.scss'
 
 interface Props {
   columns: ColumnsProps[]
@@ -93,4 +93,3 @@ defineExpose({
 })
 
 </script>
-<style lang="scss" scoped></style>
