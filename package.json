@@ -3,7 +3,7 @@
 	"author": {
 		"name": "Gerald_Wang"
 	},
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"type": "module",
 	"description": "A Vue3 components library based on ElementPlus",
 	"keywords": [
